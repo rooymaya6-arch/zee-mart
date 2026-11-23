@@ -400,6 +400,13 @@ label.fl{display:block;font-size:.8rem;font-weight:800;letter-spacing:.3px;margi
 .pay-badge{font-size:.62rem;font-weight:800;background:var(--ink);color:var(--bg);padding:3px 7px;border-radius:5px;letter-spacing:.5px}
 .qr-box{display:flex;gap:16px;align-items:center;background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:14px;margin-top:12px;flex-wrap:wrap}
 .qr-box #qrTarget{background:#fff;padding:8px;border-radius:8px;line-height:0}
+.bank-card{background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:4px 16px;margin-top:12px}
+.bank-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.bank-row:last-child{border-bottom:none}
+.bank-row .bk-l{flex:0 0 148px;font-size:.8rem;font-weight:600;color:var(--muted)}
+.bank-row .bk-v{flex:1;min-width:0;font-weight:700;font-size:.93rem;word-break:break-all}
+.bank-note{font-size:.86rem;color:var(--muted);margin:10px 0 0}
+@media (max-width:560px){.bank-row{flex-wrap:wrap;gap:4px}.bank-row .bk-l{flex-basis:100%}}
 .err{background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:11px 14px;font-size:.88rem;font-weight:600;margin-top:12px}
 .ok-banner{background:var(--good-soft);color:var(--good);border-radius:12px;padding:16px 18px;font-weight:700}
 .steps{display:flex;gap:0;margin:22px 0 6px;flex-wrap:wrap}
@@ -1982,8 +1989,58 @@ var PAY_METHODS = [
  {id:'jazzcash', name:'JazzCash', desc:'Send the exact total from your OWN JazzCash account to merchant ZEE MART DIGITAL HUB. Quote your order reference in the note. Digital delivery only. All sales final — non-refundable.', badge:'PK'},
  {id:'skrill', name:'Skrill', desc:'Send the exact total from your OWN verified Skrill wallet and include your order reference. Digital delivery only. All sales final — non-refundable.', badge:'WALLET'},
  {id:'airtm', name:'AirTM', desc:'Send the exact total from your OWN AirTM account and include your order reference. Digital delivery only. All sales final — non-refundable.', badge:'WALLET'},
- {id:'neteller', name:'Neteller', desc:'Send the exact total from your OWN verified Neteller wallet and include your order reference. Digital delivery only. All sales final — non-refundable.', badge:'WALLET'}
+ {id:'neteller', name:'Neteller', desc:'Send the exact total from your OWN verified Neteller wallet and include your order reference. Digital delivery only. All sales final — non-refundable.', badge:'WALLET'},
+ {id:'bank', name:'Bank Transfer', desc:'Pay the exact total by bank transfer to the Mashreq Bank account shown below, then share your payment screenshot / reference on WhatsApp so your order can be confirmed. Digital delivery only. All sales final — non-refundable.', badge:'BANK'}
 ];
+var BANK_DETAILS=[
+ ['Account Holder Name','Rahm Dil'],
+ ['Bank Name','Mashreq Bank'],
+ ['Account Number','089010027690'],
+ ['IBAN','PK21MSHQ0000089010027690'],
+ ['SWIFT Code','MSHQPKKK']
+];
+function bankCardHTML(){
+  return '<div class="bank-card">'+BANK_DETAILS.map(function(d,i){
+    return '<div class="bank-row"><span class="bk-l">'+d[0]+'</span><span class="bk-v">'+d[1]+'</span><button type="button" class="btn btn-ghost btn-sm" data-act="copyBank" data-a1="'+i+'" aria-label="Copy '+d[0]+'">Copy</button></div>';
+  }).join('')+'</div>';
+}
+function copyBank(i){
+  var d=BANK_DETAILS[parseInt(i,10)]; if(!d) return;
+  var t=d[1];
+  function done(){ toast(d[0]+' copied'); }
+  function fallback(){
+    var ta=document.createElement('textarea'); ta.value=t; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ if(document.execCommand('copy')) done(); else toast('Copy failed — copy the value manually'); }
+    catch(err){ toast('Copy failed — copy the value manually'); }
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done,fallback); }
+  else fallback();
+}
+var EASYPAISA_DETAILS=[
+ ['Account Name','RAHAMDIL'],
+ ['Number','03158305881']
+];
+function easypaisaCardHTML(){
+  return '<div class="bank-card">'+EASYPAISA_DETAILS.map(function(d,i){
+    return '<div class="bank-row"><span class="bk-l">'+d[0]+'</span><span class="bk-v">'+d[1]+'</span><button type="button" class="btn btn-ghost btn-sm" data-act="copyEasypaisa" data-a1="'+i+'" aria-label="Copy Easypaisa '+d[0]+'">Copy</button></div>';
+  }).join('')+'</div>';
+}
+function copyEasypaisa(i){
+  var d=EASYPAISA_DETAILS[parseInt(i,10)]; if(!d) return;
+  var t=d[1];
+  function done(){ toast('Easypaisa '+d[0]+' copied'); }
+  function fallback(){
+    var ta=document.createElement('textarea'); ta.value=t; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ if(document.execCommand('copy')) done(); else toast('Copy failed — copy the value manually'); }
+    catch(err){ toast('Copy failed — copy the value manually'); }
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done,fallback); }
+  else fallback();
+}
 var payMethod='card';
 function viewCheckout(){
   var items=cartIds().map(byId);
@@ -2029,7 +2086,17 @@ function loadQRLib(){
 function renderPayPanel(){
   var panel=document.getElementById('payPanel'); if(!panel) return;
   var m=PAY_METHODS.filter(function(x){return x.id===payMethod;})[0];
-  if(payMethod==='card'){
+  if(payMethod==='bank'){
+    panel.innerHTML='<div style="margin-top:14px"><b>Pay by bank transfer — '+money(cartTotal())+'</b>'
+    + bankCardHTML()
+    + '<p class="bank-note">Pay the exact total by bank transfer using the account details above, then share your payment screenshot / reference on WhatsApp so your order can be confirmed.</p>'
+    + '<label class="fl" for="txnId" style="margin-top:12px">Transfer reference (optional — speeds up matching)</label><input class="inp" id="txnId" placeholder="e.g. your bank transfer reference"></div>';
+  } else if(payMethod==='easypaisa'){
+    panel.innerHTML='<div style="margin-top:14px"><b>Pay with Easypaisa — '+money(cartTotal())+'</b>'
+    + easypaisaCardHTML()
+    + '<p class="bank-note">Pay the exact total on Easypaisa using the account details above, then share your payment screenshot / reference on WhatsApp so your order can be confirmed.</p>'
+    + '<label class="fl" for="txnId" style="margin-top:12px">Transaction ID (optional — speeds up matching)</label><input class="inp" id="txnId" placeholder="e.g. 2748392011"></div>';
+  } else if(payMethod==='card'){
     panel.innerHTML='<div class="fgrid"><div class="full"><label class="fl" for="ccNum">Card number</label><input class="inp" id="ccNum" inputmode="numeric" placeholder="4242 4242 4242 4242" maxlength="23" data-act="fmtCard"></div>'
     + '<div><label class="fl" for="ccExp">Expiry</label><input class="inp" id="ccExp" placeholder="MM / YY" maxlength="7" data-act="fmtExp"></div>'
     + '<div><label class="fl" for="ccCvc">CVC</label><input class="inp" id="ccCvc" inputmode="numeric" placeholder="123" maxlength="4"></div></div>';
@@ -2788,6 +2855,12 @@ function viewContact(){
   + '<div class="contact-card">'+ic('shield')+'<h3>Payment help</h3><p>Matching a wallet payment, a card charge question, or checking an order total. Include your payment method and transaction ID — never your PIN, password or OTP.</p></div>'
   + '<div class="contact-card">'+ic('book')+'<h3>Product &amp; license questions</h3><p>What is included, file format, or what a license allows. Ask before you buy — every sale is final once an order is placed.</p></div>'
   + '</div>'
+  + '<div class="form-card"><h3>Pay by bank transfer</h3><p class="muted" style="margin:0;font-size:.88rem">You can also pay for any order by direct bank transfer to this account:</p>'
+  + bankCardHTML()
+  + '<p class="bank-note">Pay by bank transfer, then share the payment screenshot / reference on WhatsApp so your order can be confirmed.</p>'
+  + '<h3 style="margin-top:22px">Pay by Easypaisa</h3><p class="muted" style="margin:0;font-size:.88rem">You can also pay for any order by Easypaisa to this account:</p>'
+  + easypaisaCardHTML()
+  + '<p class="bank-note">Pay on Easypaisa, then share the payment screenshot / reference on WhatsApp so your order can be confirmed.</p></div>'
   + '<div class="final-sale"><b>PLEASE READ BEFORE ORDERING: ALL SALES ARE FINAL.</b><p>We do not offer refunds, returns or exchanges on any product or payment method. If anything about a product is unclear, contact us <b>before</b> you pay — see the <a href="#/policy/refund" data-act="go" data-a1="policy" data-a2="refund">Refund &amp; Return Policy</a>.</p></div>'
   + '<div class="form-card"><h3>Send us a message</h3><p class="muted" style="margin:0;font-size:.88rem">Fill this in and tap “Prepare my message” — the page builds your complete message so you can copy it or download it and send it from your own email. Include:</p><ul class="check-list"><li>Your order reference (format ZM-2026-XXXXXX), if you have one</li><li>The email address used at checkout</li><li>Your payment method and transaction ID (wallet payments)</li><li>The product name your question is about</li></ul>'
   + '<div class="fgrid"><div><label class="fl" for="ctName">Your full name</label><input class="inp" id="ctName" autocomplete="name" placeholder="Your name"></div>'
@@ -3197,6 +3270,8 @@ function runAct(el){
     case 'researchGo': go('home'); setTimeout(function(){ var n=document.getElementById('researchNote'); if(n) n.scrollIntoView({behavior:'smooth'}); },60); break;
     case 'prepareContact': prepareContact(); break;
     case 'copyContact': copyContact(); break;
+    case 'copyBank': copyBank(a1); break;
+    case 'copyEasypaisa': copyEasypaisa(a1); break;
     case 'downloadContact': downloadContact(); break;
     case 'genBlueprint': genBlueprint(); break;
     case 'genAgentPrompt': genAgentPrompt(); break;
